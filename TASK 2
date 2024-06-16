@@ -1,0 +1,57 @@
+import socket
+import requests
+
+
+COMMON_PORTS = [21, 22, 23, 25, 80, 110, 143, 443, 445, 3389]
+
+def scan_ports(target):
+    print(f"Scanning ports on {target}...")
+    open_ports = []
+    for port in COMMON_PORTS:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((target, port))
+        if result == 0:
+            open_ports.append(port)
+        sock.close()
+    return open_ports
+
+def check_web_vulnerabilities(url):
+    print(f"Checking web vulnerabilities for {url}...")
+    vulnerabilities = []
+    
+    # Check for HTTP methods
+    try:
+        response = requests.options(url)
+        if 'PUT' in response.headers.get('Allow', '') or 'DELETE' in response.headers.get('Allow', ''):
+            vulnerabilities.append("Potentially dangerous HTTP methods (PUT/DELETE) allowed")
+    except requests.RequestException as e:
+        print(f"Error checking HTTP methods: {e}")
+    
+    try:
+        xss_payload = "<script>alert('XSS')</script>"
+        response = requests.get(url, params={'q': xss_payload})
+        if xss_payload in response.text:
+            vulnerabilities.append("Potential XSS vulnerability")
+    except requests.RequestException as e:
+        print(f"Error checking XSS: {e}")
+
+    return vulnerabilities
+
+if __name__ == "__main__":
+    target = input("Enter the target IP address: ")
+    url = input("Enter the target URL (including http/https): ")
+
+    open_ports = scan_ports(target)
+    if open_ports:
+        print(f"Open ports on {target}: {', '.join(map(str, open_ports))}")
+    else:
+        print(f"No open ports found on {target}.")
+
+    vulnerabilities = check_web_vulnerabilities(url)
+    if vulnerabilities:
+        print(f"Vulnerabilities found on {url}:")
+        for vuln in vulnerabilities:
+            print(f"- {vuln}")
+    else:
+        print(f"No web vulnerabilities found on {url}.")
